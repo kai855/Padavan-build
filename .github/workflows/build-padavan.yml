@@ -13,22 +13,25 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-22.04  # 更新为22.04
+    runs-on: ubuntu-22.04
     if: github.event.repository.owner.id == github.event.sender.id
 
     steps:
     - name: Checkout
-      uses: actions/checkout@v4  # 更新到最新版本
+      uses: actions/checkout@v4
       
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo apt-get update
+        sudo apt-get -y install software-properties-common
+        sudo add-apt-repository universe
+        sudo apt-get update
         sudo apt-get -y install unzip libtool-bin curl cmake gperf gawk flex bison nano xxd fakeroot \
-        cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \  # 修改为python3
-        pkg-config zlib1g-dev libgmp3-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget \
-        libssl-dev python3-pip python-is-python3  # 添加必要的22.04依赖
+        cpio git python3-docutils gettext automake autopoint texinfo build-essential help2man \
+        pkg-config zlib1g-dev libgmp-dev libmpc-dev libmpfr-dev libncurses5-dev libltdl-dev wget \
+        libssl-dev python3-pip python-is-python3 liblz4-dev libbz2-dev
         
     - name: Clone source code
       run: |
@@ -44,7 +47,11 @@ jobs:
         cd /opt/rt-n56u/trunk
         
         # 修复22.04的Python兼容性问题
-        find . -type f -exec sed -i 's/python\b/python3/g' {} +  # 全局替换python为python3
+        find . -type f -exec sed -i 's/python\b/python3/g' {} +
+        find . -type f -exec sed -i 's/env python\b/env python3/g' {} +
+        
+        # 修复工具链路径问题
+        sed -i 's/\/opt\/rt-n56u\/toolchain-mipsel\/toolchain-3.4.x/bin/\/opt\/rt-n56u\/toolchain-mipsel\/toolchain-3.4.x\/bin/g' build_firmware_modify
         
         if [ ! -f configs/templates/$TNAME.config ] ; then
           echo "configs/templates/$TNAME.config not found "
@@ -54,7 +61,7 @@ jobs:
         cp -f configs/templates/$TNAME.config .config
         sed -i 's/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=n/CONFIG_FIRMWARE_INCLUDE_OPENSSL_EXE=y/g' .config
         
-        # 原始配置修改保持不变
+        # 原始配置修改
         sed -i 's/CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER=y/CONFIG_FIRMWARE_INCLUDE_DNSFORWARDER=n/g' .config
         sed -i 's/CONFIG_FIRMWARE_INCLUDE_MENTOHUST=y/CONFIG_FIRMWARE_INCLUDE_MENTOHUST=n/g' .config
         sed -i 's/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=y/CONFIG_FIRMWARE_INCLUDE_SCUTCLIENT=n/g' .config
@@ -90,7 +97,7 @@ jobs:
         mv -f images/*.trx /opt/images/
         
     - name: Upload packages
-      uses: actions/upload-artifact@v4  # 更新到最新版本
+      uses: actions/upload-artifact@v4
       if: always()
       with:
         name: Padavan-packages
